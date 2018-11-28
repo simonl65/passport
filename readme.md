@@ -150,7 +150,8 @@ See: https://laravel.com/docs/5.6/passport
     Route::post('/register', 'Api\AuthController@register');
     Route::post('/login',    'Api\AuthController@login');
     ```
-## Add a front-end (Contacts)
+# Front-end
+## Add Contacts table and seed data
 1. Initialisations:
     ```bash
     pa make:model Contact -a
@@ -193,5 +194,109 @@ See: https://laravel.com/docs/5.6/passport
 1. On the **_VM_**, run:
     ```bash
     pa migrate --seed
+    ```
+## CRUD
+1. Register `/contact` as an API route in `api.php`:
+    ```php
+    Route::apiResource('contact', 'Api\ContactController');
+    ```
+1. Add to `ContactController.php`:
+    ```php
+    namespace App\Http\Controllers\Api;
+
+    use App\Http\Controllers\Controller;
+    use App\Http\Resources\Contact as ContactResource;
+    :
+    public function index()
+    {
+        // Only return contact(s) related to this user:
+        $contacts = request()->user()->contacts();
+        return ContactResource::collection($contacts);
+    }
+    ```
+1. `pa make:resource Contact`
+1. Change the 'toArray()' function in `Contact.php` to:
+    ```php
+        public function toArray($request)
+    {
+        return [
+            'fullName' => $this->name,
+            'tel'      => $this->phone,
+            'created'  => (string)$this->created_at->format('Y-m-d'),
+        ];
+    }
+    ```
+    This allows us to define what gets returned, what labels to use and to format the data.
+1. To enable `/contact/{id}`
+    ```php
+        public function show(Contact $contact)
+    {
+        return new ContactResource($contact);
+    }
+    ```
+
+### Enable **store**
+1. Update `Contact` _model_:
+    ```php
+        protected $fillable=[ 'name', 'phone' ];
+
+    // Relationship with User model:
+    public function user() {
+        return $this->belongsTo(User::class);
+    }
+    ```
+1. Add reciprocal relationship in `User` _model_:
+    ```php
+        /**
+     * User-Contact relationship:
+     */
+    public function contacts()
+    {
+        return $this->hasMany(Contact::class);
+    }
+    ```
+1. Update the `store` function in `ContactController`:
+    ```php
+    // User is expected to be authenticated, so User model should be
+    // available here:
+    $contact = $request
+            ->user()
+            ->contacts()
+            ->create( $request->all() );
+    return new ContactResource($contact);
+    ```
+1. Now protect the routes:
+    ```php
+    class ContactController extends Controller
+    {
+        /**
+        * Protect with middleware:
+        */
+        public function __construct()
+        {
+            return $this->middleware('auth:api');
+        }
+        ...
+    ```
+1. Define the `update` function:
+    ```php
+    // Only allow updates on user's own resource:
+    if( $request->user()->id !== $contact->user_id ) {
+        return response()->json(['error' => 'Unauthorised action'], 401);
+    }
+
+    $contact->update( $request->all() );
+    return new ContactResource($contact);
+    ```
+1. Define the `destroy` function:
+    ```php
+    // Only allow updates on user's own resource:
+    if( request()->user()->id !== $contact->user_id ) {
+        return response()->json(['error' => 'Unauthorised action'], 401);
+    }
+
+    $contact = $contact()->delete();
+
+    return response()->json(null, 200);
     ```
 1. 

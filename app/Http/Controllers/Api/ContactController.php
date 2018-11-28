@@ -1,12 +1,22 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Controller;
 use App\Contact;
+use App\Http\Resources\Contact as ContactResource;
 use Illuminate\Http\Request;
 
 class ContactController extends Controller
 {
+    /**
+     * Protect with middleware:
+     */
+    public function __construct()
+    {
+        return $this->middleware('auth:api');
+    }
+    
     /**
      * Display a listing of the resource.
      *
@@ -14,7 +24,9 @@ class ContactController extends Controller
      */
     public function index()
     {
-        //
+        // Only return contact(s) related to this user:
+        $contacts = request()->user()->contacts();
+        return ContactResource::collection($contacts);
     }
 
     /**
@@ -25,7 +37,13 @@ class ContactController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        // User is expected to be authenticated, so User model should be
+        // available here:
+        $contact = $request
+                ->user()
+                ->contacts()
+                ->create( $request->all() );
+        return new ContactResource($contact);
     }
 
     /**
@@ -36,7 +54,7 @@ class ContactController extends Controller
      */
     public function show(Contact $contact)
     {
-        //
+        return new ContactResource($contact);
     }
 
     /**
@@ -48,7 +66,13 @@ class ContactController extends Controller
      */
     public function update(Request $request, Contact $contact)
     {
-        //
+        // Only allow updates on user's own resource:
+        if( $request->user()->id !== $contact->user_id ) {
+            return response()->json(['error' => 'Unauthorised action'], 401);
+        }
+
+        $contact->update( $request->all() );
+        return new ContactResource($contact);
     }
 
     /**
@@ -59,6 +83,13 @@ class ContactController extends Controller
      */
     public function destroy(Contact $contact)
     {
-        //
+        // Only allow updates on user's own resource:
+        if( request()->user()->id !== $contact->user_id ) {
+            return response()->json(['error' => 'Unauthorised action'], 401);
+        }
+
+        $contact = $contact()->delete();
+
+        return response()->json(null, 200);
     }
 }
