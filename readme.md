@@ -1,59 +1,153 @@
-<p align="center"><img src="https://laravel.com/assets/img/components/logo-laravel.svg"></p>
+# API Auth using Laravel & Passport
+See: https://laravel.com/docs/5.6/passport
+## Passport Set-up
+1. Create a Laravel 5.6 project:  
+    ```bash
+    composer create-project --prefer-dist passport 5.6
+    ```
+1. `cd passport`
+1. Set-up .env (don't forget mysql=localhost)
+1. `pa make:auth`
+1. `composer require laravel/passport`
+1. `pa migrate`
+1. `pa passport:install`
+1. Add the following to `App\User.php`
+    ```php
+    use Laravel\Passport\HasApiTokens;
+    :
+    class User extends Authenticatable
+    {
+        use HasApiTokens, Notifiable;
+        ...
+    ```
+1. Update `AuthServiceProvider.php`:
+    ```php
+    use Laravel\Passport\Passport;
+    :
+        public function boot()
+        {
+            $this->registerPolicies();
 
-<p align="center">
-<a href="https://travis-ci.org/laravel/framework"><img src="https://travis-ci.org/laravel/framework.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://poser.pugx.org/laravel/framework/d/total.svg" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://poser.pugx.org/laravel/framework/v/stable.svg" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://poser.pugx.org/laravel/framework/license.svg" alt="License"></a>
-</p>
+            Passport::routes();
+        }
+    ```
+1. Update `config/auth.php`:
+    ```php
+    'api' => [
+                'driver' => 'passport',
+                'provider' => 'users',
+            ],
+    ```
 
-## About Laravel
+## Access an API Route
+1. Open REST Client (e.g. Insomnia or Postman)
+1. Create new oAuth request:
+    ```
+    POST http://passport/oauth/token
+    HEADER:
+        Content-Type: application/x-www-form-urlencoded
+        Accept: application/json
+    BODY:
+        grant_type: password
+        client_id: <id from oauth_clients table>
+        client_secret: <"Passport Password Grant Client" from oauth_clients table>
+        username: <api@nowhere.test>
+        password: <password>
+        scope:
+    ```
+1. Run that call to get the access_token
+1. Create new request:
+    ```
+    GET http://passport/api/user
+    HEADERS:
+        Accept: application/json
+        Authorization: Bearer <access_token>
+    ```
+1. Making that request should result in a user details response
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel attempts to take the pain out of development by easing common tasks used in the majority of web projects, such as:
+## Routes for Register & Login
+1. `pa make:controller Api\\AuthController`
+1. Add the following to `AuthController`:
+    ```php
+    use App\User;
+    use GuzzleHttp\Client;
+    use Illuminate\Support\Facades\Hash;
+    :
+        /**
+     * /register
+     */
+    public function register(Request $request)
+    {
+        // Validate user data:
+        $request->validate([
+            'email'    => 'required|email',
+            'name'     => 'required',
+            'password' => 'required'
+        ]);
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+        // Enter user details into database:
+        $user           = User::firstOrNew(['email' => $request->email]);
+        $user->name     = $request->name;
+        $user->email    = $request->email;
+        $user->password = bcrypt($request->password);
+        $user->save();
 
-Laravel is accessible, yet powerful, providing tools needed for large, robust applications.
+        $http = new Client;
 
-## Learning Laravel
+        $response = $http->post(url('oauth/token'), [
+            'form_params' => [
+                'grant_type'    => 'password',
+                'client_id'     => '2',
+                'client_secret' => 'AeHzbD9lkl2lJO1zSdHLGxkS44xrM0qmi4BVI7Gp',
+                'username'      => $request->email,
+                'password'      => $request->password,
+                'scope'         => ''
+            ]
+        ]);
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of any modern web application framework, making it a breeze to get started learning the framework.
+        return response(['data' => json_decode((string)$response->getBody(), true)]);
+    }
 
-If you're not in the mood to read, [Laracasts](https://laracasts.com) contains over 1100 video tutorials on a range of topics including Laravel, modern PHP, unit testing, JavaScript, and more. Boost the skill level of yourself and your entire team by digging into our comprehensive video library.
+    /**
+     * /login
+     */
+    public function login(Request $request)
+    {
+        $request->validate([
+            'email'    => 'required',
+            'password' => 'required'
+        ]);
 
-## Laravel Sponsors
+        $user = User::where('email', $request->email)->first();
 
-We would like to extend our thanks to the following sponsors for helping fund on-going Laravel development. If you are interested in becoming a sponsor, please visit the Laravel [Patreon page](https://patreon.com/taylorotwell):
+        if (!$user) {
+            return response([
+                'status'  => 'error',
+                'message' => 'User not found.'
+            ]);
+        }
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[British Software Development](https://www.britishsoftware.co)**
-- [Fragrantica](https://www.fragrantica.com)
-- [SOFTonSOFA](https://softonsofa.com/)
-- [User10](https://user10.com)
-- [Soumettre.fr](https://soumettre.fr/)
-- [CodeBrisk](https://codebrisk.com)
-- [1Forge](https://1forge.com)
-- [TECPRESSO](https://tecpresso.co.jp/)
-- [Pulse Storm](http://www.pulsestorm.net/)
-- [Runtime Converter](http://runtimeconverter.com/)
-- [WebL'Agence](https://weblagence.com/)
+        if (Hash::check($request->password, $user->password)) {
+            $http = new Client;
 
-## Contributing
+            $response = $http->post(url('oauth/token'), [
+                'form_params' => [
+                    'grant_type'    => 'password',
+                    'client_id'     => '2',
+                    'client_secret' => 'AeHzbD9lkl2lJO1zSdHLGxkS44xrM0qmi4BVI7Gp',
+                    'username'      => $request->email,
+                    'password'      => $request->password,
+                    'scope'         => ''
+                ]
+            ]);
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+            return response(['data' => json_decode((string)$response->getBody(), true)]);
+        }
+    }
+    ```
+1. Add the `/register` & `/login` routes to `api.php`:
+    ```php
+    Route::post('/register', 'Api\AuthController@register');
+    Route::post('/login',    'Api\AuthController@login');
+    ```
+1. 
