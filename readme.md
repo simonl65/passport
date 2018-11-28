@@ -150,4 +150,48 @@ See: https://laravel.com/docs/5.6/passport
     Route::post('/register', 'Api\AuthController@register');
     Route::post('/login',    'Api\AuthController@login');
     ```
+## Add a front-end (Contacts)
+1. Initialisations:
+    ```bash
+    pa make:model Contact -a
+    pa make:seed UsersTableSeeder
+    pa make:seed ContactsTableSeeder
+    ```
+1. Set the contacts table migration:
+    ```php
+    $table->unsignedInteger('user_id');
+    $table->string('name');
+    $table->string('phone');
+    $table->timestamp('created_at')->default(DB::raw('CURRENT_TIMESTAMP'));
+    $table->timestamp('updated_at')->default(DB::raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
+    ```
+1. Update `ContactFactory.php`:
+    ```php
+    return [
+        'name' => $faker->name,
+        'phone' => $faker->phoneNumber,
+        'user_id' => App\User::all()->unique()->random()->id
+    ];
+    ```
+1. Update `UsersTableSeeder.php`:
+    ```php
+    use App\User;
+    :
+    return factory(User::class, 20)->create();
+    ```
+1. Update `ContactsTableSeeder.php`:
+    ```php
+    use App\Contact;
+    :
+    return factory(Contact::class, 20)->create();
+    ```
+1. Update `DatabaseSeeder.php`:
+    ```php
+    $this->call(UsersTableSeeder::class);
+    $this->call(ContactsTableSeeder::class);
+    ```
+1. On the **_VM_**, run:
+    ```bash
+    pa migrate --seed
+    ```
 1. 
