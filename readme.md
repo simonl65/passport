@@ -205,21 +205,24 @@ See: https://laravel.com/docs/5.6/passport
     namespace App\Http\Controllers\Api;
 
     use App\Http\Controllers\Controller;
+    use App\Contact;
     use App\Http\Resources\Contact as ContactResource;
+    use Illuminate\Http\Request;
     :
     public function index()
     {
         // Only return contact(s) related to this user:
-        $contacts = request()->user()->contacts();
+        $contacts = request()->user()->contacts;
         return ContactResource::collection($contacts);
     }
     ```
 1. `pa make:resource Contact`
 1. Change the 'toArray()' function in `Contact.php` to:
     ```php
-        public function toArray($request)
+    public function toArray($request)
     {
         return [
+            'id'       => $this->id,
             'fullName' => $this->name,
             'tel'      => $this->phone,
             'created'  => (string)$this->created_at->format('Y-m-d'),
@@ -229,7 +232,7 @@ See: https://laravel.com/docs/5.6/passport
     This allows us to define what gets returned, what labels to use and to format the data.
 1. To enable `/contact/{id}`
     ```php
-        public function show(Contact $contact)
+    public function show(Contact $contact)
     {
         return new ContactResource($contact);
     }
@@ -238,7 +241,7 @@ See: https://laravel.com/docs/5.6/passport
 ### Enable **store**
 1. Update `Contact` _model_:
     ```php
-        protected $fillable=[ 'name', 'phone' ];
+    protected $fillable=[ 'name', 'phone' ];
 
     // Relationship with User model:
     public function user() {
@@ -247,7 +250,7 @@ See: https://laravel.com/docs/5.6/passport
     ```
 1. Add reciprocal relationship in `User` _model_:
     ```php
-        /**
+    /**
      * User-Contact relationship:
      */
     public function contacts()
@@ -265,7 +268,8 @@ See: https://laravel.com/docs/5.6/passport
             ->create( $request->all() );
     return new ContactResource($contact);
     ```
-1. Now protect the routes:
+### Now protect the routes:
+1. In `ContactController`:
     ```php
     class ContactController extends Controller
     {
@@ -280,23 +284,30 @@ See: https://laravel.com/docs/5.6/passport
     ```
 1. Define the `update` function:
     ```php
-    // Only allow updates on user's own resource:
-    if( $request->user()->id !== $contact->user_id ) {
-        return response()->json(['error' => 'Unauthorised action'], 401);
-    }
+    public function update(Request $request, Contact $contact)
+    {
+        // Only allow updates on user's own resource:
+        if( $request->user()->id !== $contact->user_id ) {
+            return response()->json(['error' => 'Unauthorised action'], 401);
+        }
 
-    $contact->update( $request->all() );
-    return new ContactResource($contact);
+        $contact->update( $request->all() );
+        return new ContactResource($contact);
+    }
     ```
 1. Define the `destroy` function:
     ```php
-    // Only allow updates on user's own resource:
-    if( request()->user()->id !== $contact->user_id ) {
-        return response()->json(['error' => 'Unauthorised action'], 401);
+    public function destroy(Contact $contact)
+    {
+        // Only allow updates on user's own resource:
+        if( request()->user()->id !== $contact->user_id ) {
+            return response()->json(['error' => 'Unauthorised action'], 401);
+        }
+
+        $contact = $contact->delete();
+
+        return response()->json(null, 200);
     }
-
-    $contact = $contact()->delete();
-
-    return response()->json(null, 200);
     ```
+### ^^^^^^^^^^CRUD Completed^^^^^^^^^^
 1. 

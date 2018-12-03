@@ -25,7 +25,7 @@ class ContactController extends Controller
     public function index()
     {
         // Only return contact(s) related to this user:
-        $contacts = request()->user()->contacts();
+        $contacts = request()->user()->contacts;
         return ContactResource::collection($contacts);
     }
 
@@ -88,7 +88,7 @@ class ContactController extends Controller
             return response()->json(['error' => 'Unauthorised action'], 401);
         }
 
-        $contact = $contact()->delete();
+        $contact = $contact->delete();
 
         return response()->json(null, 200);
     }
