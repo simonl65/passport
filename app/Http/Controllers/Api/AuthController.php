@@ -42,7 +42,10 @@ class AuthController extends Controller
             ]
         ]);
 
-        return response(['data' => json_decode((string)$response->getBody(), true)]);
+        return response([
+            'auth' => json_decode((string)$response->getBody(), true),
+            'user' => $user
+        ]);
     }
 
     /**
