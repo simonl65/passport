@@ -23,7 +23,8 @@ class AuthController extends Controller
         ]);
 
         // Enter user details into database:
-        $user           = User::firstOrNew(['email' => $request->email]);
+        // $user           = User::firstOrNew(['email' => $request->email]);
+        $user           = new User();
         $user->name     = $request->name;
         $user->email    = $request->email;
         $user->password = bcrypt($request->password);
@@ -81,7 +82,25 @@ class AuthController extends Controller
                 ]
             ]);
 
-            return response(['data' => json_decode((string)$response->getBody(), true)]);
+            return response(['auth' => json_decode((string)$response->getBody(), true), 'user' => $user]);
         }
+    }
+
+    /**
+     * /refreshtoken
+     */
+    public function refreshToken()
+    {
+        $http     = new Client;
+        $response = $http->post(url('oauth/token'), [
+            'form_params' => [
+                'grant_type'    => 'refresh_token',
+                'refresh_token' => request('refresh_token'),
+                'client_id'     => '2',
+                'client_secret' => 'AeHzbD9lkl2lJO1zSdHLGxkS44xrM0qmi4BVI7Gp',
+                'scope'         => '',
+            ],
+        ]);
+        return json_decode((string)$response->getBody(), true);
     }
 }
