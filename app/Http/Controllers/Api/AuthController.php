@@ -23,8 +23,8 @@ class AuthController extends Controller
         ]);
 
         // Enter user details into database:
-        // $user           = User::firstOrNew(['email' => $request->email]);
-        $user           = new User();
+        $user           = User::firstOrNew(['email' => $request->email]);
+        // $user           = new User();
         $user->name     = $request->name;
         $user->email    = $request->email;
         $user->password = bcrypt($request->password);

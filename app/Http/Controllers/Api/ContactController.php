@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
 use App\Contact;
+use App\Http\Controllers\Controller;
 use App\Http\Resources\Contact as ContactResource;
 use Illuminate\Http\Request;
 
