@@ -14,6 +14,7 @@ class Contact extends JsonResource
      */
     public function toArray($request)
     {
+        dump($this->id . ' -- ' . $this->name . ' -- ' . $this->phone . ' -- ' . $this->created);
         return [
             'id'       => $this->id,
             'fullName' => $this->name,
